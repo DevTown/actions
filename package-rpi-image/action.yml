@@ -1,0 +1,85 @@
+name: "Package RPi image"
+description: "Packages an RPi image as a zip, generates a .md5 and .sha256 files for image and zip"
+inputs:
+  image_path:
+    description: "The path to the image file"
+    required: true
+outputs:
+  image_name:
+    description: "The name of the image"
+    value: "${{ steps.package-image.outputs.image }}"
+  image_sha256:
+    description: "The SHA256 sum of the image"
+    value: "${{ steps.package-image.outputs.image_sha256 }}"
+  image_size:
+    description: "The size of the image in bytes"
+    value: "${{ steps.package-image.outputs.image_size }}"
+  zip_name:
+    description: "The name of the packaged image zip"
+    value: "${{ steps.package-image.outputs.zip_name }}"
+  zip_path:
+    description: "The path of the package image zip"
+    value: "${{ steps.package-image.outputs.zip_path }}"
+  zip_sha256:
+    description: "The SHA256 sum of the packaged image zip"
+    value: "${{ steps.package-image.outputs.zip_sha256 }}"
+  zip_size:
+    description: "The size of the packaged image zip in bytes"
+    value: "${{ steps.package-image.outputs.zip_size }}"
+runs:
+  using: "composite"
+  steps:
+    - name: "📦 Package image"
+      id: package-image
+      run: |
+        IMAGE_PATH="${{ inputs.image_path }}"
+
+        FOLDER=$(dirname "$IMAGE_PATH")
+        IMAGE=$(basename "$IMAGE_PATH")
+        ZIP="${IMAGE%.*}.zip"
+        ZIP_PATH="${IMAGE_PATH%.*}.zip"
+
+        cd $FOLDER
+
+        # md5, sha256 and size of the image
+
+        echo "Calculating checksums of $IMAGE..."
+
+        md5sum $IMAGE > $IMAGE.md5
+        sha256sum $IMAGE > $IMAGE.sha256
+
+        IMAGE_SHA256=`cat $IMAGE.sha256 | cut -d ' ' -f 1`
+        IMAGE_SIZE=`stat -c %s $IMAGE`
+
+        echo "IMAGE_SHA256: $IMAGE_SHA256"
+        echo "IMAGE_SIZE: $IMAGE_SIZE"
+
+        # zip the image
+
+        echo "Zipping $IMAGE to $ZIP..."
+
+        zip $ZIP $IMAGE
+
+        # md5, sha256 and size of the zip
+
+        echo "Calculating checksums of $ZIP..."
+
+        md5sum $ZIP > $ZIP.md5
+        sha256sum $ZIP > $ZIP.sha256
+
+        ZIP_SHA256=`cat $ZIP.sha256 | cut -d ' ' -f 1`
+        ZIP_SIZE=`stat -c %s $ZIP`
+
+        echo "ZIP_SHA256: $ZIP_SHA256"
+        echo "ZIP_SIZE: $ZIP_SIZE"
+
+        # outputs
+
+        echo "::set-output name=image_name::$IMAGE"
+        echo "::set-output name=image_sha256::$IMAGE_SHA256"
+        echo "::set-output name=image_size::$IMAGE_SIZE"
+        echo "::set-output name=zip_name::$ZIP"
+        echo "::set-output name=zip_path::$ZIP_PATH"
+        echo "::set-output name=zip_sha256::$ZIP_SHA256"
+        echo "::set-output name=zip_size::$ZIP_SIZE"
+      shell: bash
